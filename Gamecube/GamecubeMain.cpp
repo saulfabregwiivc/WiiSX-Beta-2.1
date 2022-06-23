@@ -28,13 +28,16 @@
 #include <time.h>
 #include <fat.h>
 #include <aesndlib.h>
+#include <sys/iosupport.h>
 
 #ifdef DEBUGON
 # include <debug.h>
 #endif
+
 #include "../PsxCommon.h"
 #include "wiiSXconfig.h"
 #include "menu/MenuContext.h"
+
 extern "C" {
 #include "DEBUG.h"
 #include "fileBrowser/fileBrowser.h"
@@ -65,6 +68,7 @@ void SysCloseLibrary(void *lib);
 void SysUpdate();
 void SysRunGui();
 void SysMessage(char *fmt, ...);
+extern u32 __di_check_ahbprot(void);
 }
 
 u32* xfb[2] = { NULL, NULL };	/*** Framebuffers ***/
@@ -336,12 +340,113 @@ PluginTable plugins[] =
 	  PLUGIN_SLOT_7 };
 }
 
-int main(int argc, char *argv[]) 
-{
-	/* INITIALIZE */
+/****************************************************************************
+ * IOS Check
+ ***************************************************************************/
 #ifdef HW_RVL
-	DI_Init();    // first
+static bool FindIOS(u32 ios)
+{
+	s32 ret;
+	u32 n;
+
+	u64 *titles = NULL;
+	u32 num_titles=0;
+
+	ret = ES_GetNumTitles(&num_titles);
+	if (ret < 0)
+		return false;
+
+	if(num_titles < 1) 
+		return false;
+
+	titles = (u64 *)memalign(32, num_titles * sizeof(u64) + 32);
+	if (!titles)
+		return false;
+
+	ret = ES_GetTitles(titles, num_titles);
+	if (ret < 0)
+	{
+		free(titles);
+		return false;
+	}
+		
+	for(n=0; n < num_titles; n++)
+	{
+		if((titles[n] & 0xFFFFFFFF)==ios) 
+		{
+			free(titles); 
+			return true;
+		}
+	}
+    free(titles); 
+	return false;
+}
+
+bool SaneIOS()
+{
+	bool res = false;
+	u32 num_titles=0;
+	u32 tmd_size;
+	u32 ios = IOS_GetVersion();
+	u32 tmdbuffer[MAX_SIGNED_TMD_SIZE] ATTRIBUTE_ALIGN(32); 
+
+	if(ios > 200)
+		return false;
+
+	if (ES_GetNumTitles(&num_titles) < 0)
+		return false;
+
+	if(num_titles < 1) 
+		return false;
+
+	u64 *titles = (u64 *)memalign(32, num_titles * sizeof(u64) + 32);
+
+	if (ES_GetTitles(titles, num_titles) < 0)
+	{
+		free(titles);
+		return false;
+	}
+
+	for(u32 n=0; n < num_titles; n++)
+	{
+		if((titles[n] & 0xFFFFFFFF) != ios) 
+			continue;
+
+		if (ES_GetStoredTMDSize(titles[n], &tmd_size) < 0)
+			break;
+
+		if (tmd_size > 4096)
+			break;
+
+		if (ES_GetStoredTMD(titles[n], (signed_blob *)tmdbuffer, tmd_size) < 0)
+			break;
+
+		if (tmdbuffer[1] || tmdbuffer[2])
+		{
+			res = true;
+			break;
+		}
+	}
+    free(titles);
+	return res;
+}
 #endif
+
+int main(int argc, char *argv[]) 
+{	
+#ifdef HW_RVL
+	// only reload IOS if AHBPROT is not enabled
+	u32 version = IOS_GetVersion();
+
+	if(version != 58 && __di_check_ahbprot() != 1)
+	{
+		if(FindIOS(58))
+			IOS_ReloadIOS(58);
+		else if((version < 61 || version >= 200) && FindIOS(61))
+			IOS_ReloadIOS(61);
+	}
+	DI_Init();
+	#endif
 	
 	loadSettings(argc, argv);
 	MenuContext *menu = new MenuContext(vmode);
