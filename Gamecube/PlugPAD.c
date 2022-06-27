@@ -59,6 +59,7 @@ controller_t* controller_ts[num_controller_t] =
 	{ &controller_GC, &controller_Classic,
 	  &controller_WiimoteNunchuk,
 	  &controller_Wiimote,
+	  &controller_WiiUPro,
 	 };
 #else
 	{ &controller_GC,

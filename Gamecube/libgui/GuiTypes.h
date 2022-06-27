@@ -25,6 +25,7 @@
 #include "../wiiSXconfig.h"
 #ifdef HW_RVL
 #include <wiiuse/wpad.h>
+#include <wupc/wupc.h>
 #endif
 #include <vector>
 #include <stack>

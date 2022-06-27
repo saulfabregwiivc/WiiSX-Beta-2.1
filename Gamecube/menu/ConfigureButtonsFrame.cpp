@@ -221,11 +221,12 @@ ConfigureButtonsFrame::~ConfigureButtonsFrame()
 
 }
 
-static char controllerTypeStrings[5][17] =
+static char controllerTypeStrings[6][17] =
 	{ "Gamecube",
 	  "Classic",
 	  "Wiimote+Nunchuck",
 	  "Wiimote",
+	  "Wii U Pro",
 	  "NULL"};
 
 enum ActivePadType
@@ -234,6 +235,7 @@ enum ActivePadType
 	ACTIVEPADTYPE_CLASSIC,
 	ACTIVEPADTYPE_WIIMOTENUNCHUCK,
 	ACTIVEPADTYPE_WIIMOTE,
+	ACTIVEPADTYPE_WIIUPRO,
 	ACTIVEPADTYPE_NONE,
 };
 
@@ -267,6 +269,8 @@ void ConfigureButtonsFrame::activateSubmenu(int submenu)
 		activePadType = ACTIVEPADTYPE_WIIMOTENUNCHUCK;
 	else if (virtualControllers[activePad].control == &controller_Wiimote)
 		activePadType = ACTIVEPADTYPE_WIIMOTE;
+	else if (virtualControllers[activePad].control == &controller_WiiUPro)
+		activePadType = ACTIVEPADTYPE_WIIUPRO;
 #endif //HW_RVL
 	else
 		activePadType = ACTIVEPADTYPE_NONE;

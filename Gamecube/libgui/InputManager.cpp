@@ -23,7 +23,6 @@
 #include "CursorManager.h"
 #include "../gc_input/controller.h"
 
-
 void ShutdownWii();
 
 
@@ -35,6 +34,7 @@ Input::Input()
 	PAD_Init();
 #ifdef HW_RVL
 	CONF_Init();
+	WUPC_Init();
 	WPAD_Init();
 	WPAD_SetIdleTimeout(120);
 	WPAD_SetVRes(WPAD_CHAN_ALL, 640, 480);
@@ -48,6 +48,10 @@ Input::Input()
 
 Input::~Input()
 {
+#ifdef HW_RVL
+	WUPC_Shutdown();
+	WPAD_Shutdown();
+#endif
 }
 
 void Input::refreshInput()
@@ -56,9 +60,10 @@ void Input::refreshInput()
 	PAD_Read(gcPad);
 	PAD_Clamp(gcPad);
 #ifdef HW_RVL
-	if(wpadNeedScan){ WPAD_ScanPads(); wpadNeedScan = 0; }
+	if (wpadNeedScan){ WUPC_UpdateButtonStats(); WPAD_ScanPads(); wpadNeedScan = 0; }
 //	WPAD_ScanPads();
 	wiiPad = WPAD_Data(0);
+	wupcData = WUPC_Data(0);
 #endif
 }
 
@@ -66,6 +71,11 @@ void Input::refreshInput()
 WPADData* Input::getWpad()
 {
 	return wiiPad;
+}
+
+WUPCData* Input::getWupc()
+{
+	return wupcData;
 }
 #endif
 

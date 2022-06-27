@@ -21,10 +21,12 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include <unistd.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <string.h>
+
 #include <time.h>
 #include <fat.h>
 #include <aesndlib.h>
@@ -38,6 +40,8 @@
 #include "wiiSXconfig.h"
 #include "menu/MenuContext.h"
 
+extern u32 __di_check_ahbprot(void);
+
 extern "C" {
 #include "DEBUG.h"
 #include "fileBrowser/fileBrowser.h"
@@ -47,6 +51,7 @@ extern "C" {
 #include "fileBrowser/fileBrowser-SMB.h"
 #include "gc_input/controller.h"
 }
+
 
 #ifdef WII
 unsigned int MALLOC_MEM2 = 0;
@@ -68,7 +73,6 @@ void SysCloseLibrary(void *lib);
 void SysUpdate();
 void SysRunGui();
 void SysMessage(char *fmt, ...);
-extern u32 __di_check_ahbprot(void);
 }
 
 u32* xfb[2] = { NULL, NULL };	/*** Framebuffers ***/
@@ -248,6 +252,11 @@ void loadSettings(int argc, char *argv[])
 				load_configurations(f, &controller_Wiimote);			//read in Wiimote controller mappings
 				fclose(f);
 			}
+			f = fopen("usb:/wiisx/controlP.cfg", "r");  //attempt to open file
+			if (f) {
+				load_configurations(f, &controller_WiiUPro);			//read in Wii U Pro controller mappings
+				fclose(f);
+			}
 #endif //HW_RVL
 		}
 	}
@@ -280,6 +289,11 @@ void loadSettings(int argc, char *argv[])
 			f = fopen( "sd:/wiisx/controlW.cfg", "r" );  //attempt to open file
 			if(f) {
 				load_configurations(f, &controller_Wiimote);			//read in Wiimote controller mappings
+				fclose(f);
+			}
+			f = fopen("sd:/wiisx/controlP.cfg", "r");  //attempt to open file
+			if (f) {
+				load_configurations(f, &controller_WiiUPro);			//read in Wii U Pro controller mappings
 				fclose(f);
 			}
 #endif //HW_RVL
@@ -344,108 +358,91 @@ PluginTable plugins[] =
  * IOS Check
  ***************************************************************************/
 #ifdef HW_RVL
-static bool FindIOS(u32 ios)
+bool SupportedIOS(u32 ios)
 {
-	s32 ret;
-	u32 n;
+        if(ios == 58 || ios == 61)
+                return true;
 
-	u64 *titles = NULL;
-	u32 num_titles=0;
-
-	ret = ES_GetNumTitles(&num_titles);
-	if (ret < 0)
-		return false;
-
-	if(num_titles < 1) 
-		return false;
-
-	titles = (u64 *)memalign(32, num_titles * sizeof(u64) + 32);
-	if (!titles)
-		return false;
-
-	ret = ES_GetTitles(titles, num_titles);
-	if (ret < 0)
-	{
-		free(titles);
-		return false;
-	}
-		
-	for(n=0; n < num_titles; n++)
-	{
-		if((titles[n] & 0xFFFFFFFF)==ios) 
-		{
-			free(titles); 
-			return true;
-		}
-	}
-    free(titles); 
-	return false;
+        return false;
 }
 
-bool SaneIOS()
+bool SaneIOS(u32 ios)
 {
-	bool res = false;
-	u32 num_titles=0;
-	u32 tmd_size;
-	u32 ios = IOS_GetVersion();
-	u32 tmdbuffer[MAX_SIGNED_TMD_SIZE] ATTRIBUTE_ALIGN(32); 
+        bool res = false;
+        u32 num_titles=0;
+        u32 tmd_size;
 
-	if(ios > 200)
-		return false;
+        if(ios > 200)
+                return false;
 
-	if (ES_GetNumTitles(&num_titles) < 0)
-		return false;
+        if (ES_GetNumTitles(&num_titles) < 0)
+                return false;
 
-	if(num_titles < 1) 
-		return false;
+        if(num_titles < 1) 
+                return false;
 
-	u64 *titles = (u64 *)memalign(32, num_titles * sizeof(u64) + 32);
+        u64 *titles = (u64 *)memalign(32, num_titles * sizeof(u64) + 32);
+        
+        if(!titles)
+                return false;
 
-	if (ES_GetTitles(titles, num_titles) < 0)
-	{
-		free(titles);
-		return false;
-	}
+        if (ES_GetTitles(titles, num_titles) < 0)
+        {
+                free(titles);
+                return false;
+        }
+        
+        u32 *tmdbuffer = (u32 *)memalign(32, MAX_SIGNED_TMD_SIZE);
 
-	for(u32 n=0; n < num_titles; n++)
-	{
-		if((titles[n] & 0xFFFFFFFF) != ios) 
-			continue;
+        if(!tmdbuffer)
+        {
+                free(titles);
+                return false;
+        }
 
-		if (ES_GetStoredTMDSize(titles[n], &tmd_size) < 0)
-			break;
+        for(u32 n=0; n < num_titles; n++)
+        {
+                if((titles[n] & 0xFFFFFFFF) != ios) 
+                        continue;
 
-		if (tmd_size > 4096)
-			break;
+                if (ES_GetStoredTMDSize(titles[n], &tmd_size) < 0)
+                        break;
 
-		if (ES_GetStoredTMD(titles[n], (signed_blob *)tmdbuffer, tmd_size) < 0)
-			break;
+                if (tmd_size > 4096)
+                        break;
 
-		if (tmdbuffer[1] || tmdbuffer[2])
-		{
-			res = true;
-			break;
-		}
-	}
+                if (ES_GetStoredTMD(titles[n], (signed_blob *)tmdbuffer, tmd_size) < 0)
+                        break;
+
+                if (tmdbuffer[1] || tmdbuffer[2])
+                {
+                        res = true;
+                        break;
+                }
+        }
+        free(tmdbuffer);
     free(titles);
-	return res;
+        return res;
 }
 #endif
 
-int main(int argc, char *argv[]) 
-{	
-#ifdef HW_RVL
-	// only reload IOS if AHBPROT is not enabled
-	u32 version = IOS_GetVersion();
 
-	if(version != 58 && __di_check_ahbprot() != 1)
-	{
-		if(FindIOS(58))
-			IOS_ReloadIOS(58);
-		else if((version < 61 || version >= 200) && FindIOS(61))
-			IOS_ReloadIOS(61);
-	}
-	DI_Init();
+int main(int argc, char *argv[]) 
+{
+	/* INITIALIZE */
+#ifdef HW_RVL
+        L2Enhance();
+        
+        u32 ios = IOS_GetVersion();
+
+        if(!SupportedIOS(ios))
+        {
+                s32 preferred = IOS_GetPreferredVersion();
+
+                if(SupportedIOS(preferred))
+                        IOS_ReloadIOS(preferred);
+        }
+
 	#endif
 	
 	loadSettings(argc, argv);

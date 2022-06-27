@@ -617,6 +617,33 @@ void SettingsFrame::drawChildren(menu::Graphics &gfx)
 					}
 				}
 			}
+			else if (WUPC_ButtonsHeld(i) ^ previousButtonsWii[i])
+			{
+				u32 wupcHeld = WUPC_ButtonsHeld(i);
+				u32 currentButtonsDownWii = (wupcHeld ^ previousButtonsWii[i]) & wupcHeld;
+				previousButtonsWii[i] = wupcHeld;
+
+				if (currentButtonsDownWii & WPAD_CLASSIC_BUTTON_FULL_R)
+				{
+					//move to next tab
+					if (activeSubmenu < SUBMENU_SAVES)
+					{
+						activateSubmenu(activeSubmenu + 1);
+						menu::Focus::getInstance().clearPrimaryFocus();
+					}
+					break;
+				}
+				else if (currentButtonsDownWii & WPAD_CLASSIC_BUTTON_FULL_L)
+				{
+					//move to the previous tab
+					if (activeSubmenu > SUBMENU_GENERAL)
+					{
+						activateSubmenu(activeSubmenu - 1);
+						menu::Focus::getInstance().clearPrimaryFocus();
+					}
+					break;
+				}
+			}
 #endif //HW_RVL
 		}
 
@@ -1067,6 +1094,12 @@ void Func_SaveButtonsSD()
 			fclose(f);
 			num_written++;
 		}
+		f = fopen("sd:/wiisx/controlP.cfg", "wb");  //attempt to open file
+		if (f) {
+			save_configurations(f, &controller_WiiUPro);			//write out Wii U Pro controller mappings
+			fclose(f);
+			num_written++;
+		}
 #endif //HW_RVL
 	}
 	if (num_written == num_controller_t)
@@ -1104,6 +1137,12 @@ void Func_SaveButtonsUSB()
 		f = fopen( "usb:/wiisx/controlW.cfg", "wb" );  //attempt to open file
 		if(f) {
 			save_configurations(f, &controller_Wiimote);			//write out Wiimote controller mappings
+			fclose(f);
+			num_written++;
+		}
+		f = fopen("usb:/wiisx/controlP.cfg", "wb");  //attempt to open file
+		if (f) {
+			save_configurations(f, &controller_WiiUPro);			//write out Wii U Pro controller mappings
 			fclose(f);
 			num_written++;
 		}

@@ -219,8 +219,10 @@ void Func_AssignPad(int i)
 		break;
 #ifdef HW_RVL
 	case PADTYPE_WII:
+		if (controller_WiiUPro.available[(int)padAssign[i]])
+			type = &controller_WiiUPro;
 		//Note: Wii expansion detection is done in InputStatusBar.cpp during MainFrame draw
-		if (controller_Classic.available[(int)padAssign[i]])
+		else if (controller_Classic.available[(int)padAssign[i]])
 			type = &controller_Classic;
 		else
 			type = &controller_WiimoteNunchuk;

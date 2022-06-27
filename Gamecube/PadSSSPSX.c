@@ -109,14 +109,17 @@ static void UpdateState (const int pad) //Note: pad = 0 or 1
 	//Need to switch between Classic and WiimoteNunchuck if user swapped extensions
 	if (padType[virtualControllers[Control].number] == PADTYPE_WII)
 	{
-		if (virtualControllers[Control].control == &controller_Classic &&
-			!controller_Classic.available[virtualControllers[Control].number] &&
-			controller_WiimoteNunchuk.available[virtualControllers[Control].number])
-			assign_controller(Control, &controller_WiimoteNunchuk, virtualControllers[Control].number);
-		else if (virtualControllers[Control].control == &controller_WiimoteNunchuk &&
-			!controller_WiimoteNunchuk.available[virtualControllers[Control].number] &&
-			controller_Classic.available[virtualControllers[Control].number])
-			assign_controller(Control, &controller_Classic, virtualControllers[Control].number);
+		if (virtualControllers[Control].control != &controller_WiiUPro)
+		{
+			if (virtualControllers[Control].control == &controller_Classic &&
+				!controller_Classic.available[virtualControllers[Control].number] &&
+				controller_WiimoteNunchuk.available[virtualControllers[Control].number])
+				assign_controller(Control, &controller_WiimoteNunchuk, virtualControllers[Control].number);
+			else if (virtualControllers[Control].control == &controller_WiimoteNunchuk &&
+				!controller_WiimoteNunchuk.available[virtualControllers[Control].number] &&
+				controller_Classic.available[virtualControllers[Control].number])
+				assign_controller(Control, &controller_Classic, virtualControllers[Control].number);
+		}
 	}
 #endif
 

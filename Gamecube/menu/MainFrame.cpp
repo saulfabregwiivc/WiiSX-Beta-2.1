@@ -235,6 +235,9 @@ void Func_PlayGame()
 #ifdef HW_RVL
 			WPADData* wiiPad = WPAD_Data(i);
 			if(wiiPad->err == WPAD_ERR_NONE && wiiPad->btns_h & (WPAD_BUTTON_A | WPAD_CLASSIC_BUTTON_A)) buttonHeld++;
+
+			WUPCData* data = WUPC_Data(i);
+			if (data != NULL && data->button & WPAD_CLASSIC_BUTTON_A) buttonHeld++;
 #endif
 		}
 	}

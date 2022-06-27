@@ -72,6 +72,7 @@ void Focus::updateFocus()
 			previousButtonsGC[i] = PAD_ButtonsHeld(i);
 #ifdef HW_RVL
 			previousButtonsWii[i] = wiiPad[i].btns_h;
+			previousButtonsWiiUPro[i] = WUPC_ButtonsHeld(i);
 #endif
 		}
 		clearInput = false;
@@ -79,6 +80,8 @@ void Focus::updateFocus()
 
 	for (int i=0; i<4; i++)
 	{
+		u32 currentButtonsWiiUPro = WUPC_ButtonsHeld(i);
+
 		u16 currentButtonsGC = PAD_ButtonsHeld(i);
 		if (currentButtonsGC ^ previousButtonsGC[i])
 		{
@@ -163,6 +166,36 @@ void Focus::updateFocus()
 			if (primaryFocusOwner) primaryFocusOwner = primaryFocusOwner->updateFocus(focusDirection,buttonsDown);
 			else primaryFocusOwner = currentFrame->updateFocus(focusDirection,buttonsDown);
 			previousButtonsWii[i] = wiiPad[i].btns_h;
+			break;
+		}
+		else if (currentButtonsWiiUPro ^ previousButtonsWiiUPro[i])
+		{
+			switch (currentButtonsWiiUPro & 0xc0030000) {
+			case WPAD_CLASSIC_BUTTON_LEFT:
+				focusDirection = DIRECTION_LEFT;
+				break;
+			case WPAD_CLASSIC_BUTTON_RIGHT:
+				focusDirection = DIRECTION_RIGHT;
+				break;
+			case WPAD_CLASSIC_BUTTON_DOWN:
+				focusDirection = DIRECTION_DOWN;
+				break;
+			case WPAD_CLASSIC_BUTTON_UP:
+				focusDirection = DIRECTION_UP;
+				break;
+			default:
+				focusDirection = DIRECTION_NONE;
+			}
+			if (currentButtonsWiiUPro & WPAD_CLASSIC_BUTTON_A) buttonsDown |= ACTION_SELECT;
+			if (currentButtonsWiiUPro & WPAD_CLASSIC_BUTTON_B) buttonsDown |= ACTION_BACK;
+			if (freezeAction)
+			{
+				focusDirection = DIRECTION_NONE;
+				buttonsDown = 0;
+			}
+			if (primaryFocusOwner) primaryFocusOwner = primaryFocusOwner->updateFocus(focusDirection, buttonsDown);
+			else primaryFocusOwner = currentFrame->updateFocus(focusDirection, buttonsDown);
+			previousButtonsWiiUPro[i] = currentButtonsWiiUPro;
 			break;
 		}
 #endif
